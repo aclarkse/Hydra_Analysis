@@ -18,7 +18,6 @@ def process_stack(filename, step_size, new_dir):
     n_frames = tiff_stack.shape[0]
     print(f"Tiff stack loaded. Found {n_frames} images.")
     for frame in tqdm.tqdm(range(n_frames)):
-        # extract every 100 frames and save
         if frame % step_size == 0:
             #plt.imshow(tiff_stack[frame,:,:], cmap='gray')
             #plt.show()
