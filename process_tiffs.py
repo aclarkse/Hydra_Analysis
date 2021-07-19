@@ -27,12 +27,10 @@ def process_stack(filename, step_size, new_dir):
     print("Finished processing images!")
 
 if __name__ == "__main__":
-    # specify the filename
     parser = argparse.ArgumentParser(description='Loads a tiff stack and extracts slices.')
     parser.add_argument('filename', metavar='fn', type=str,
                         help='The filename of the tiff stack you wish to process.')
     filename = parser.parse_args().filename                   
-    #filename = "red(1-852).tif"
 
     # create a new directory for saving slices
     parent_dir = os.getcwd()
