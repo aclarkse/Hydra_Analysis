@@ -1,4 +1,5 @@
 import os
+import math
 import argparse
 import nibabel as nib
 import skimage.io as skio
@@ -28,12 +29,14 @@ def process_stack(filename, step_size, new_dir):
             else:
                 frame_name = frame
             # convert to NIfTI type
-            img = nib.Nifti1Image(tiff_stack[frame,:,:], np.eye(4))
+            img = nib.Nifti1Image(tiff_stack[frame,:,:], affine=np.eye(4))
             nib.save(img, os.path.join(new_dir, '{}.nii.gz'.format(frame_name)))
-    print("Finished processing images!")
+
+    processed_imgs = math.floor(n_frames/step_size) + 1
+    print(f"Finished processing {processed_imgs} images!")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Loads a tiff stack and extracts slices.')
+    parser = argparse.ArgumentParser(description='Loads a tiff stack and extracts slices to save as NIfTI files.')
     parser.add_argument('filename', metavar='fn', type=str,
                         help='The filename of the tiff stack you wish to process.')
     filename = parser.parse_args().filename                   
@@ -45,5 +48,5 @@ if __name__ == "__main__":
         os.mkdir(os.path.join(parent_dir, new_dir))
         print(f"Directory \'{new_dir}/' created")
 
-    process_stack(filename, 10, new_dir)
+    process_stack(filename, 20, new_dir)
 
