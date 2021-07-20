@@ -1,12 +1,13 @@
 import os
 import argparse
+import nibabel as nib
 import skimage.io as skio
-import matplotlib.pyplot as plt
+import numpy as np
 import tqdm as tqdm
 
 def process_stack(filename, step_size, new_dir):
     """ Processes a stack of tiff files by extracting slices 
-        by a specified step size.
+        by a specified step size and saves them as NIfTI files.
 
         Arguments:
             - filename [string]: the filename of the tiff stack to process
@@ -19,11 +20,16 @@ def process_stack(filename, step_size, new_dir):
     print(f"Tiff stack loaded. Found {n_frames} images.")
     for frame in tqdm.tqdm(range(n_frames)):
         if frame % step_size == 0:
-            #plt.imshow(tiff_stack[frame,:,:], cmap='gray')
-            #plt.show()
-            skio.imsave(new_dir+'/slice_{}.tif'.format(frame),
-                        tiff_stack[frame,:,:],
-                        plugin='tifffile')
+            if len(str(frame)) == 2:
+                # for formatting the filename, prepend extra 0s
+                frame_name = "0" + str(frame)
+            elif len(str(frame)) == 1:
+                frame_name = "00"+ str(frame)
+            else:
+                frame_name = frame
+            # convert to NIfTI type
+            img = nib.Nifti1Image(tiff_stack[frame,:,:], np.eye(4))
+            nib.save(img, os.path.join(new_dir, '{}.nii.gz'.format(frame_name)))
     print("Finished processing images!")
 
 if __name__ == "__main__":
