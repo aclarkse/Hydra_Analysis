@@ -1,13 +1,13 @@
-from torch.utils.data import Dataset
-import numpy as np
 import os
-import cv2
+from torch.utils.data import Dataset
+from torchvision.io import read_image
 
-class Dataset(Dataset):
-    def __init__(self, image_dir, mask_dir, augmentation=None):
+class HydraDataset(Dataset):
+    def __init__(self, image_dir, mask_dir, transform=None, mask_transform=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
-        self.augmentation = augmentation
+        self.transform = transform
+        self.mask_transform = mask_transform
         self.images = os.listdir(self.image_dir)
     
     def __len__(self):
@@ -16,15 +16,12 @@ class Dataset(Dataset):
     def __getitem__(self, index):
         image_path = os.path.join(self.image_dir, self.images[index])
         mask_path = os.path.join(self.mask_dir, self.images[index])
-        image = cv2.imread(image_path, 1)
-        mask = cv2.imread(mask_path, 0)
+        image = read_image(image_path)
+        mask = read_image(mask_path)
   
-        if self.augmentation:
-            sample = {'image': image, 'mask': mask}
-            sample = self.augmentation(**sample)
-            image, mask = sample['image'], np.array(sample['mask'].unsqueeze(0))
-
-        return {
-            'image': image,
-            'mask': mask
-        }
+        if self.transform:
+            image = self.transform(image)
+        if self.mask_transform:
+            mask = self.mask_transform(mask)
+            
+        return image, mask

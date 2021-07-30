@@ -5,57 +5,48 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from model import UNet
-from data import Dataset
-from torchvision.utils import make_grid
+from data import HydraDataset
 
+
+def load_data(train_imgs, train_masks, val_imgs, val_masks, batch_size=4, augmentation=True):
+    if augmentation:
+        train_augs, val_augs = data_augmentors()
+    else:
+        train_augs =  None
+        val_augs = None
+
+    train_ds = HydraDataset(train_imgs, train_masks, train_augs)
+    val_ds = HydraDataset(val_imgs, val_masks, val_augs)
+
+    train_dl = DataLoader(train_ds, batch_size, shuffle=True),
+    val_dl =  DataLoader(val_ds, batch_size, shuffle=True)
+
+    return train_dl, val_dl
 
 def data_augmentors():
-    train_transform = A.Compose([
-        A.Resize(height=160, width=240),
-        A.Rotate(limit=35, p=1.0),
-        A.HorizontalFlip(p=0.5),
-        A.VerticalFlip(p=0.5),
-        A.Normalize(mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                    max_pixel_value=255.0),
-        ToTensorV2()
+    train_transform = transforms.Compose([
+        transforms.RandomRotation(10),
+        transforms.RandomHorizontalFlip(),
+        transforms.Resize(224),
+        transforms.CenterCrop(224),
+        transforms.ToTensor()
     ])
 
-    #train_transform = transforms.Compose([
-    #    transforms.RandomRotation(10),
-    #    transforms.RandomHorizontalFlip(),
-    #    transforms.Resize(224),
-    #    transforms.CenterCrop(224),
-    #    transforms.ToTensor(),
-    #    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-    #                std=[0.229, 0.224, 0.225])
-    #])
-
-    val_transform = A.Compose([
-        A.Resize(height=160, width=240),
-        A.Normalize(mean=[0.485, 0.456, 0.406],
-                    std=[0.229, 0.224, 0.225],
-                    max_pixel_value=255.0),
-        ToTensorV2()
+ 
+    val_transform = transforms.Compose([
+        transforms.Resize(224),
+        transforms.CenterCrop(224),
+        transforms.ToTensor()
     ])
-
-    #val_transform = transforms.Compose([
-    #    transforms.Resize(224),
-    #    transforms.CenterCrop(224),
-    #    transforms.ToTensor(),
-    #    transforms.Normalize(mean=[0.485, 0.456, 0.406],
-    #                std=[0.229, 0.224, 0.225])
-    #])
 
     return train_transform, val_transform
 
 def train_model(model, device, criterion, optimizer, train_loader, val_loader, epochs):
+    scaler = torch.cuda.amp.GradScaler()
     train_losses = np.zeros(epochs)
     val_losses = np.zeros(epochs)
 
@@ -63,16 +54,17 @@ def train_model(model, device, criterion, optimizer, train_loader, val_loader, e
         model.train()
         train_loss = []
         for images, masks in train_loader:
-            images, masks = images.to(device), masks.to(device)
-            optimizer.zero_grad()
-
+            images, masks = images.to(device), masks.float().unsqueeze(1).to(device)
+            
             # forward pass
             preds = model(images)
             loss = criterion(preds, masks)
 
             # backward and optimize
-            loss.backward()
-            optimizer.step()
+            optimizer.zero_grad()
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             train_loss.append(loss.item())
         
         # get train loss and test loss
@@ -102,7 +94,7 @@ def get_accuracy(model, train_loader, val_loader, device):
     n_total = 0.
 
     for images, masks in train_loader:
-        images, masks = images.to(device), masks.to(device)
+        images, masks = images['image'].to(device), masks['mask'].to(device)
         # forward pass
         preds = model(images)
         _, preds = torch.max(preds, 1)
@@ -131,42 +123,31 @@ def get_accuracy(model, train_loader, val_loader, device):
 
 def main():
     # define data paths
-    train_imgs = 'data/train/images'
-    train_masks = 'data/train/masks'
-    val_imgs = 'data/val/images'
-    val_masks = 'data/val/masks'
+    train_imgs = 'hydra_png_data/images_train'
+    train_masks = 'hydra_png_data/masks_train'
+    val_imgs = 'hydra_png_data/images_test'
+    val_masks = 'hydra_png_data/masks_test'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    train_augs, val_augs = data_augmentors()
-    train = Dataset(train_imgs, train_masks, train_augs)
-    val = Dataset(val_imgs, val_masks, val_augs)
-
-    print(train)
-    print(val)
-
-    # create data loaders
-    train_loader = DataLoader(train, batch_size=4, shuffle=True)
-    val_loader = DataLoader(val, batch_size=4)
-
-    for images, labels in train_loader:
+    
+    train, val = load_data(train_imgs, train_masks, val_imgs, val_masks)
+    
+    for image, target in train:
+        print(image.shape)
+        print(target.shape)
         break
 
-    print(images)
-    print(labels)
 
 
-    #image, mask = train[0]['image'], train[0]['mask']
-    #print(image.shape)
-    #print(mask.shape)
 
-    model = UNet(in_channels=3, out_channels=1).to(device)
 
-    criterion = nn.BCELoss()
-    optimizer = optim.Adam(model.parameters())
+    #model = UNet(in_channels=3, out_channels=1).to(device)
+    #criterion = nn.BCEWithLogitsLoss()
+    #optimizer = optim.Adam(model.parameters())
 
 
     #train_loss, val_loss = train_model(model, device, criterion, optimizer, \
-    #                                    train, val, epochs=50)
+    #                                    train_ldr, val_ldr, epochs=50)
 
 
 if __name__ == "__main__":
