@@ -2,44 +2,29 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from PIL import Image
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import transforms
 from torch.utils.data import DataLoader
+from torchvision.transforms.transforms import ToTensor
 from tqdm import tqdm
 from model import UNet
 from data import HydraDataset
 
 
-def load_data(train_imgs, train_masks, val_imgs, val_masks, batch_size=4, augmentation=True):
-    if augmentation:
-        train_augs, val_augs = data_augmentors()
-    else:
-        train_augs =  None
-        val_augs = None
-
-    train_ds = HydraDataset(train_imgs, train_masks, train_augs)
-    val_ds = HydraDataset(val_imgs, val_masks, val_augs)
-
-    train_dl = DataLoader(train_ds, batch_size, shuffle=True),
-    val_dl =  DataLoader(val_ds, batch_size, shuffle=True)
-
-    return train_dl, val_dl
-
-def data_augmentors():
+def data_transforms():
     train_transform = transforms.Compose([
         transforms.RandomRotation(10),
         transforms.RandomHorizontalFlip(),
-        transforms.Resize(224),
-        transforms.CenterCrop(224),
+        transforms.Resize((1600, 2084)),
         transforms.ToTensor()
     ])
 
  
     val_transform = transforms.Compose([
-        transforms.Resize(224),
-        transforms.CenterCrop(224),
+        transforms.Resize((1600, 2084)),
         transforms.ToTensor()
     ])
 
@@ -129,13 +114,30 @@ def main():
     val_masks = 'hydra_png_data/masks_test'
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    train, val = load_data(train_imgs, train_masks, val_imgs, val_masks)
-    
-    for image, target in train:
+
+    train_transform = transforms.Compose([
+        transforms.RandomRotation(10),
+        transforms.RandomHorizontalFlip(),
+        transforms.Resize((1600, 2084)),
+        transforms.ToTensor()
+    ])
+
+    val_transform = transforms.Compose([
+        transforms.Resize((1600, 2084)),
+        transforms.ToTensor()
+    ])
+
+    train_ds = HydraDataset(train_imgs, train_masks, transform= train_transform)
+    val_ds = HydraDataset(val_imgs, val_masks, transform= val_transform)
+
+    train_loader = DataLoader(dataset=train_ds, batch_size=4, shuffle=True)
+    val_loader = DataLoader(dataset=val_ds, batch_size=4, shuffle=True)
+
+    for image, mask in train_loader:
         print(image.shape)
-        print(target.shape)
-        break
+        print(mask.shape)
+
+
 
 
 
