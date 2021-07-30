@@ -108,40 +108,27 @@ def get_accuracy(model, train_loader, val_loader, device):
 
 def main():
     # define data paths
-    train_imgs = 'hydra_png_data/images_train'
-    train_masks = 'hydra_png_data/masks_train'
-    val_imgs = 'hydra_png_data/images_test'
-    val_masks = 'hydra_png_data/masks_test'
+    train_dir = 'hydra/train/'
+    val_dir = 'hydra/val/'
+ 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    train_transform = transforms.Compose([
-        transforms.RandomRotation(10),
-        transforms.RandomHorizontalFlip(),
-        transforms.Resize((1600, 2084)),
-        transforms.ToTensor()
-    ])
-
-    val_transform = transforms.Compose([
-        transforms.Resize((1600, 2084)),
-        transforms.ToTensor()
-    ])
-
-    train_ds = HydraDataset(train_imgs, train_masks, transform= train_transform)
-    val_ds = HydraDataset(val_imgs, val_masks, transform= val_transform)
+    #train_trans, val_trans = data_transforms()
+   
+    train_ds = HydraDataset(train_dir+'images', train_dir+'/masks')
+    val_ds = HydraDataset(val_dir+'images', val_dir+'masks')
 
     train_loader = DataLoader(dataset=train_ds, batch_size=4, shuffle=True)
     val_loader = DataLoader(dataset=val_ds, batch_size=4, shuffle=True)
 
-    for image, mask in train_loader:
-        print(image.shape)
-        print(mask.shape)
+    data, targets = next(iter(train_loader))
+    print(data.shape)
+    print(targets.shape)
 
-
-
-
-
-
+    data_2, targets_2 = next(iter(val_loader))
+    print(data.shape)
+    print(targets.shape)
 
     #model = UNet(in_channels=3, out_channels=1).to(device)
     #criterion = nn.BCEWithLogitsLoss()
